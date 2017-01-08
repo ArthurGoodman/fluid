@@ -3,18 +3,37 @@
 
 #include <iostream>
 
+enum TextureIndex {
+    Texture0 = 0,
+
+    TextureCount
+};
+
+static sf::RenderTexture textures[TextureCount][2];
+static int indices[TextureCount];
+
+static void swapTextures(TextureIndex i) {
+    indices[i] = (indices[i] + 1) % 2;
+}
+
+static sf::RenderTexture &currentTexture(TextureIndex i) {
+    return textures[i][indices[i]];
+}
+
 int main(int, char **) {
     const char *windowTitle = "Fluid";
     bool isFullscreen = false;
-    sf::VideoMode videoMode(600, 600);
+    sf::VideoMode videoMode(1366, 768);
     sf::Vector2i windowPos;
 
     sf::RenderWindow window(videoMode, windowTitle, sf::Style::Default);
-
     windowPos = window.getPosition();
 
     sf::Shader shader;
     shader.loadFromFile("shader.vert", "shader.frag");
+
+    textures[Texture0][0].create(videoMode.width / 2, videoMode.height / 2);
+    textures[Texture0][1].create(videoMode.width / 2, videoMode.height / 2);
 
     while (window.isOpen()) {
         sf::Event event;
@@ -66,14 +85,19 @@ int main(int, char **) {
                 break;
             }
 
-        shader.setUniform("resolution", window.getView().getSize());
+        shader.setUniform("resolution", currentTexture(Texture0).getView().getSize());
 
         sf::RenderStates states;
         states.shader = &shader;
 
         sf::RectangleShape rect(window.getView().getSize());
 
-        window.draw(rect, states);
+        currentTexture(Texture0).draw(rect, states);
+
+        sf::Sprite sprite(currentTexture(Texture0).getTexture());
+        sprite.scale((float)window.getSize().x / sprite.getTextureRect().width, (float)window.getSize().y / sprite.getTextureRect().height);
+
+        window.draw(sprite);
 
         window.display();
     }

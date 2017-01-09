@@ -1,4 +1,9 @@
-uniform sampler2D read;
+#version 330
+out uvec4 fragColor;
+
+#extension GL_EXT_gpu_shader4 : enable
+
+uniform usampler2D read;
 
 uniform vec2 gridSize;
 
@@ -12,8 +17,8 @@ float gauss(vec2 p, float r) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / gridSize.xy;
-    vec3 base = texture2D(read, uv).xyz;
+    vec3 base = uintBitsToFloat(texture2D(read, uv).xyz);
     vec2 coord = point.xy - gl_FragCoord.xy;
     vec3 splat = color * gauss(coord, gridSize.x * radius);
-    gl_FragColor = vec4(base + splat, 1.0);
+    fragColor = floatBitsToUint(vec4(base + splat, 1.0)) * 255u;
 }

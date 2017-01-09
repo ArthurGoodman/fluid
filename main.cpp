@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/OpenGL.hpp>
 
 enum TextureIndex {
     Velocity = 0,
@@ -37,13 +38,15 @@ int main(int, char **) {
     const int gridWidth = windowWidth / 2;
     const int gridHeight = windowHeight / 2;
 
-    sf::Vector2i mousePos, lastPos;
+    sf::Vector2i mousePos;
+    sf::Vector2f lastPos;
 
     bool isFullscreen = false;
     sf::VideoMode videoMode(windowWidth, windowHeight);
     sf::Vector2i windowPos;
 
     sf::RenderWindow window(videoMode, windowTitle, sf::Style::Default);
+    window.setVerticalSyncEnabled(true);
     windowPos = window.getPosition();
 
     sf::Shader advect;
@@ -74,6 +77,7 @@ int main(int, char **) {
                 case sf::Keyboard::Escape:
                     if (isFullscreen) {
                         window.create(videoMode, windowTitle, sf::Style::Default);
+                        window.setVerticalSyncEnabled(true);
                         window.setPosition(windowPos);
                         isFullscreen = false;
                     } else
@@ -84,10 +88,12 @@ int main(int, char **) {
                 case sf::Keyboard::F11:
                     if (isFullscreen) {
                         window.create(videoMode, windowTitle, sf::Style::Default);
+                        window.setVerticalSyncEnabled(true);
                         window.setPosition(windowPos);
                     } else {
                         windowPos = window.getPosition();
                         window.create(sf::VideoMode::getDesktopMode(), windowTitle, sf::Style::Fullscreen);
+                        window.setVerticalSyncEnabled(true);
                     }
 
                     isFullscreen = !isFullscreen;
@@ -118,6 +124,7 @@ int main(int, char **) {
                 videoMode = sf::VideoMode(event.size.width, event.size.height);
                 sf::Vector2i pos = window.getPosition();
                 window.create(videoMode, windowTitle, sf::Style::Default);
+                window.setVerticalSyncEnabled(true);
                 window.setPosition(pos);
                 break;
             }
@@ -152,8 +159,8 @@ int main(int, char **) {
         write(Density).draw(rect, states);
         swap(Density);
 
-        sf::Vector2i pos = mousePos;
-        sf::Vector2i drag = pos - lastPos;
+        sf::Vector2f pos(mousePos);
+        sf::Vector2f drag = pos - lastPos;
         lastPos = pos;
 
         pos.x = (float)pos.x / window.getSize().x * gridWidth;
@@ -187,9 +194,9 @@ int main(int, char **) {
 
         states.shader = &display;
 
-        display.setUniform("read", read(Density).getTexture());
-        display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
-        display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
+        display.setUniform("read", read(Velocity).getTexture());
+        display.setUniform("bias", sf::Glsl::Vec3(0.5, 0.5, 0.5));
+        display.setUniform("scale", sf::Glsl::Vec3(0.5, 0.5, 0.5));
         display.setUniform("resolution", sf::Glsl::Vec2(window.getSize()));
 
         window.draw(windowRect, states);

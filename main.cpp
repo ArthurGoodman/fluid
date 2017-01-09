@@ -1,10 +1,11 @@
 #include <SFML/Graphics.hpp>
-#include <SFML/OpenGL.hpp>
-
-#include <iostream>
 
 enum TextureIndex {
-    Texture0 = 0,
+    Velocity = 0,
+    Density,
+    VelocityDivergence,
+    VelocityVorticity,
+    Pressure,
 
     TextureCount
 };
@@ -16,14 +17,16 @@ static void swapTextures(TextureIndex i) {
     indices[i] = (indices[i] + 1) % 2;
 }
 
-static sf::RenderTexture &currentTexture(TextureIndex i) {
-    return textures[i][indices[i]];
-}
-
 int main(int, char **) {
     const char *windowTitle = "Fluid";
+    const int windowWidth = 1366;
+    const int windowHeight = 768;
+
+    const int gridWidth = windowWidth / 2;
+    const int gridHeight = windowHeight / 2;
+
     bool isFullscreen = false;
-    sf::VideoMode videoMode(1366, 768);
+    sf::VideoMode videoMode(windowWidth, windowHeight);
     sf::Vector2i windowPos;
 
     sf::RenderWindow window(videoMode, windowTitle, sf::Style::Default);
@@ -32,8 +35,10 @@ int main(int, char **) {
     sf::Shader shader;
     shader.loadFromFile("shader.vert", "shader.frag");
 
-    textures[Texture0][0].create(videoMode.width / 2, videoMode.height / 2);
-    textures[Texture0][1].create(videoMode.width / 2, videoMode.height / 2);
+    for (int i = 0; i < TextureCount; i++) {
+        textures[i][0].create(gridWidth, gridHeight);
+        textures[i][1].create(gridWidth, gridHeight);
+    }
 
     while (window.isOpen()) {
         sf::Event event;
@@ -85,17 +90,17 @@ int main(int, char **) {
                 break;
             }
 
-        shader.setUniform("resolution", currentTexture(Texture0).getView().getSize());
+        shader.setUniform("resolution", sf::Glsl::Vec2(gridWidth, gridHeight));
 
         sf::RenderStates states;
         states.shader = &shader;
 
-        sf::RectangleShape rect(window.getView().getSize());
+        sf::RectangleShape windowRect(window.getView().getSize());
 
-        currentTexture(Texture0).draw(rect, states);
+        textures[0][0].draw(windowRect, states);
 
-        sf::Sprite sprite(currentTexture(Texture0).getTexture());
-        sprite.scale((float)window.getSize().x / sprite.getTextureRect().width, (float)window.getSize().y / sprite.getTextureRect().height);
+        sf::Sprite sprite(textures[0][0].getTexture());
+        sprite.scale((float)window.getSize().x / gridWidth, (float)window.getSize().y / gridHeight);
 
         window.draw(sprite);
 

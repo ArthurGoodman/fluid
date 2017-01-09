@@ -60,10 +60,10 @@ int main(int, char **) {
     for (int i = 0; i < TextureCount; i++) {
         textures[i][0].create(gridWidth, gridHeight);
         textures[i][1].create(gridWidth, gridHeight);
-    }
 
-    write(Velocity).clear(sf::Color(127, 127, 127, 255));
-    read(Velocity).clear(sf::Color(127, 127, 127, 255));
+        textures[i][0].clear(sf::Color(127, 127, 127, 255));
+        textures[i][1].clear(sf::Color(127, 127, 127, 255));
+    }
 
     while (window.isOpen()) {
         sf::Event event;
@@ -100,15 +100,9 @@ int main(int, char **) {
 
                 case sf::Keyboard::R:
                     for (int i = 0; i < TextureCount; i++) {
-                        textures[i][0].clear();
-                        textures[i][1].clear();
+                        textures[i][0].clear(sf::Color(127, 127, 127, 255));
+                        textures[i][1].clear(sf::Color(127, 127, 127, 255));
                     }
-
-                    write(Velocity).clear(sf::Color(127, 127, 127, 255));
-                    read(Velocity).clear(sf::Color(127, 127, 127, 255));
-
-                    write(Density).clear(sf::Color(127, 127, 127, 255));
-                    read(Density).clear(sf::Color(127, 127, 127, 255));
 
                     break;
 

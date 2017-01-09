@@ -13,8 +13,20 @@ enum TextureIndex {
 static sf::RenderTexture textures[TextureCount][2];
 static int indices[TextureCount];
 
-static void swapTextures(TextureIndex i) {
-    indices[i] = (indices[i] + 1) % 2;
+static int next(TextureIndex i) {
+    return (indices[i] + 1) % 2;
+}
+
+static void swap(TextureIndex i) {
+    indices[i] = next(i);
+}
+
+static sf::RenderTexture &write(TextureIndex i) {
+    return textures[i][indices[i]];
+}
+
+static sf::RenderTexture &read(TextureIndex i) {
+    return textures[i][next(i)];
 }
 
 int main(int, char **) {
@@ -25,6 +37,8 @@ int main(int, char **) {
     const int gridWidth = windowWidth / 2;
     const int gridHeight = windowHeight / 2;
 
+    sf::Vector2i mousePos, lastPos;
+
     bool isFullscreen = false;
     sf::VideoMode videoMode(windowWidth, windowHeight);
     sf::Vector2i windowPos;
@@ -32,8 +46,14 @@ int main(int, char **) {
     sf::RenderWindow window(videoMode, windowTitle, sf::Style::Default);
     windowPos = window.getPosition();
 
-    sf::Shader shader;
-    shader.loadFromFile("shader.vert", "shader.frag");
+    sf::Shader advect;
+    advect.loadFromFile("advect.frag", sf::Shader::Fragment);
+
+    sf::Shader splat;
+    splat.loadFromFile("splat.frag", sf::Shader::Fragment);
+
+    sf::Shader display;
+    display.loadFromFile("display.frag", sf::Shader::Fragment);
 
     for (int i = 0; i < TextureCount; i++) {
         textures[i][0].create(gridWidth, gridHeight);
@@ -73,9 +93,25 @@ int main(int, char **) {
                     isFullscreen = !isFullscreen;
                     break;
 
+                case sf::Keyboard::R:
+                    for (int i = 0; i < TextureCount; i++) {
+                        textures[i][0].clear();
+                        textures[i][1].clear();
+                    }
+
+                    break;
+
                 default:
                     break;
                 }
+                break;
+
+            case sf::Event::MouseButtonPressed:
+                mousePos = sf::Vector2i(event.mouseButton.x, event.mouseButton.y);
+                break;
+
+            case sf::Event::MouseMoved:
+                mousePos = sf::Vector2i(event.mouseMove.x, event.mouseMove.y);
                 break;
 
             case sf::Event::Resized: {
@@ -90,19 +126,73 @@ int main(int, char **) {
                 break;
             }
 
-        shader.setUniform("resolution", sf::Glsl::Vec2(gridWidth, gridHeight));
-
-        sf::RenderStates states;
-        states.shader = &shader;
-
+        sf::RectangleShape rect(sf::Vector2f(gridWidth, gridHeight));
         sf::RectangleShape windowRect(window.getView().getSize());
 
-        textures[0][0].draw(windowRect, states);
+        sf::RenderStates states;
+        states.shader = &advect;
 
-        sf::Sprite sprite(textures[0][0].getTexture());
-        sprite.scale((float)window.getSize().x / gridWidth, (float)window.getSize().y / gridHeight);
+        advect.setUniform("velocity", read(Velocity).getTexture());
+        advect.setUniform("advected", read(Velocity).getTexture());
+        advect.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+        advect.setUniform("gridScale", 1.0f);
+        advect.setUniform("timestep", 1.0f);
+        advect.setUniform("dissipation", 1.0f);
 
-        window.draw(sprite);
+        write(Velocity).draw(rect, states);
+        swap(Velocity);
+
+        advect.setUniform("velocity", read(Velocity).getTexture());
+        advect.setUniform("advected", read(Density).getTexture());
+        advect.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+        advect.setUniform("gridScale", 1.0f);
+        advect.setUniform("timestep", 1.0f);
+        advect.setUniform("dissipation", 0.998f);
+
+        write(Density).draw(rect, states);
+        swap(Density);
+
+        sf::Vector2i pos = mousePos;
+        sf::Vector2i drag = pos - lastPos;
+        lastPos = pos;
+
+        pos.x = (float)pos.x / window.getSize().x * gridWidth;
+        pos.y = (float)(window.getSize().y - pos.y) / window.getSize().y * gridHeight;
+
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+            states.shader = &splat;
+
+            splat.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            splat.setUniform("read", read(Velocity).getTexture());
+            splat.setUniform("color", sf::Glsl::Vec3(drag.x, -drag.y, 0));
+            splat.setUniform("point", sf::Glsl::Vec2(pos));
+            splat.setUniform("radius", 0.01f);
+
+            write(Velocity).draw(rect, states);
+            swap(Velocity);
+        }
+
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
+            states.shader = &splat;
+
+            splat.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            splat.setUniform("read", read(Density).getTexture());
+            splat.setUniform("color", sf::Glsl::Vec3(0.8, 0, 0));
+            splat.setUniform("point", sf::Glsl::Vec2(pos));
+            splat.setUniform("radius", 0.01f);
+
+            write(Density).draw(rect, states);
+            swap(Density);
+        }
+
+        states.shader = &display;
+
+        display.setUniform("read", read(Density).getTexture());
+        display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
+        display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
+        display.setUniform("resolution", sf::Glsl::Vec2(window.getSize()));
+
+        window.draw(windowRect, states);
 
         window.display();
     }

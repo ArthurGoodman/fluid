@@ -17,8 +17,8 @@ float gauss(vec2 p, float r) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / gridSize.xy;
-    vec3 base = uintBitsToFloat(texture2D(read, uv).xyz);
+    vec3 base = (uintBitsToFloat(texture2D(read, uv).xyz) - 0.5) / 0.5;
     vec2 coord = point.xy - gl_FragCoord.xy;
     vec3 splat = color * gauss(coord, gridSize.x * radius);
-    fragColor = floatBitsToUint(vec4(base + splat, 1.0)) * 255u;
+    fragColor = floatBitsToUint(vec4(vec3(base + splat) * 0.5 + 0.5, 1.0));
 }

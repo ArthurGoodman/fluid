@@ -1,5 +1,5 @@
 #version 330
-out uvec4 fragColor;
+out vec4 fragColor;
 
 #extension GL_EXT_gpu_shader4 : enable
 
@@ -9,5 +9,5 @@ uniform vec3 scale;
 uniform vec2 resolution;
 
 void main() {
-    fragColor = floatBitsToUint(vec4(bias + scale * uintBitsToFloat(texture2D(read, gl_FragCoord.xy / resolution.xy).xyz), 1.0)) * 255u;
+    fragColor = vec4(bias + scale * uintBitsToFloat(texture2D(read, gl_FragCoord.xy / resolution.xy).xyz), 1.0);
 }

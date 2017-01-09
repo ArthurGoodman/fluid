@@ -46,7 +46,6 @@ int main(int, char **) {
     sf::Vector2i windowPos;
 
     sf::RenderWindow window(videoMode, windowTitle, sf::Style::Default);
-    window.setVerticalSyncEnabled(true);
     windowPos = window.getPosition();
 
     sf::Shader advect;
@@ -77,7 +76,6 @@ int main(int, char **) {
                 case sf::Keyboard::Escape:
                     if (isFullscreen) {
                         window.create(videoMode, windowTitle, sf::Style::Default);
-                        window.setVerticalSyncEnabled(true);
                         window.setPosition(windowPos);
                         isFullscreen = false;
                     } else
@@ -88,12 +86,10 @@ int main(int, char **) {
                 case sf::Keyboard::F11:
                     if (isFullscreen) {
                         window.create(videoMode, windowTitle, sf::Style::Default);
-                        window.setVerticalSyncEnabled(true);
                         window.setPosition(windowPos);
                     } else {
                         windowPos = window.getPosition();
                         window.create(sf::VideoMode::getDesktopMode(), windowTitle, sf::Style::Fullscreen);
-                        window.setVerticalSyncEnabled(true);
                     }
 
                     isFullscreen = !isFullscreen;
@@ -124,7 +120,6 @@ int main(int, char **) {
                 videoMode = sf::VideoMode(event.size.width, event.size.height);
                 sf::Vector2i pos = window.getPosition();
                 window.create(videoMode, windowTitle, sf::Style::Default);
-                window.setVerticalSyncEnabled(true);
                 window.setPosition(pos);
                 break;
             }
@@ -195,8 +190,8 @@ int main(int, char **) {
         states.shader = &display;
 
         display.setUniform("read", read(Velocity).getTexture());
-        display.setUniform("bias", sf::Glsl::Vec3(0.5, 0.5, 0.5));
-        display.setUniform("scale", sf::Glsl::Vec3(0.5, 0.5, 0.5));
+        display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
+        display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
         display.setUniform("resolution", sf::Glsl::Vec2(window.getSize()));
 
         window.draw(windowRect, states);

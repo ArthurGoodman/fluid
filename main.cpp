@@ -62,6 +62,9 @@ int main(int, char **) {
         textures[i][1].create(gridWidth, gridHeight);
     }
 
+    write(Velocity).clear(sf::Color(127, 127, 127, 255));
+    read(Velocity).clear(sf::Color(127, 127, 127, 255));
+
     while (window.isOpen()) {
         sf::Event event;
 
@@ -100,6 +103,12 @@ int main(int, char **) {
                         textures[i][0].clear();
                         textures[i][1].clear();
                     }
+
+                    write(Velocity).clear(sf::Color(127, 127, 127, 255));
+                    read(Velocity).clear(sf::Color(127, 127, 127, 255));
+
+                    write(Density).clear(sf::Color(127, 127, 127, 255));
+                    read(Density).clear(sf::Color(127, 127, 127, 255));
 
                     break;
 
@@ -155,7 +164,11 @@ int main(int, char **) {
         swap(Density);
 
         sf::Vector2f pos(mousePos);
+
         sf::Vector2f drag = pos - lastPos;
+        drag.x = std::max(-1.0f, std::min(drag.x, 1.0f));
+        drag.y = std::max(-1.0f, std::min(drag.y, 1.0f));
+
         lastPos = pos;
 
         pos.x = (float)pos.x / window.getSize().x * gridWidth;
@@ -189,9 +202,16 @@ int main(int, char **) {
 
         states.shader = &display;
 
-        display.setUniform("read", read(Velocity).getTexture());
-        display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
-        display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::V)) {
+            display.setUniform("read", read(Velocity).getTexture());
+            display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
+            display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
+        } else {
+            display.setUniform("read", read(Density).getTexture());
+            display.setUniform("bias", sf::Glsl::Vec3(-1, -1, -1));
+            display.setUniform("scale", sf::Glsl::Vec3(2, 2, 2));
+        }
+
         display.setUniform("resolution", sf::Glsl::Vec2(window.getSize()));
 
         window.draw(windowRect, states);

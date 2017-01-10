@@ -1,5 +1,34 @@
-#version 330
 out vec4 fragColor;
+
+#extension GL_ARB_shading_language_packing : enable
+
+vec2 unpack(vec4 rgba) {
+    uvec4 t = uvec4(rgba * 255.0);
+
+    uint v = t.x;
+    v *= 256u;
+    v += t.y;
+    v *= 256u;
+    v += t.z;
+    v *= 256u;
+    v += t.w;
+
+    return unpackHalf2x16(v);
+}
+
+vec4 pack(vec2 v) {
+    uint t = packHalf2x16(v);
+
+    uint a = t % 256u;
+    t /= 256u;
+    uint b = t % 256u;
+    t /= 256u;
+    uint g = t % 256u;
+    t /= 256u;
+    uint r = t % 256u;
+
+    return vec4(r, g, b, a) / 255.0;
+}
 
 uniform sampler2D velocity;
 uniform sampler2D advected;
@@ -16,10 +45,10 @@ vec2 bilerp(sampler2D d, vec2 p) {
     ij.zw = ij.xy + 1.0;
 
     vec4 uv = ij / gridSize.xyxy;
-    vec2 d11 = (texture2D(d, uv.xy).xy - 0.5) / 0.5;
-    vec2 d21 = (texture2D(d, uv.zy).xy - 0.5) / 0.5;
-    vec2 d12 = (texture2D(d, uv.xw).xy - 0.5) / 0.5;
-    vec2 d22 = (texture2D(d, uv.zw).xy - 0.5) / 0.5;
+    vec2 d11 = unpack(texture2D(d, uv.xy));
+    vec2 d21 = unpack(texture2D(d, uv.zy));
+    vec2 d12 = unpack(texture2D(d, uv.xw));
+    vec2 d22 = unpack(texture2D(d, uv.zw));
 
     vec2 a = p - ij.xy;
 
@@ -31,7 +60,7 @@ void main() {
     float scale = 1.0 / gridScale;
 
     // trace point back in time
-    vec2 p = gl_FragCoord.xy - timestep * scale * (texture2D(velocity, uv).xy - 0.5) / 0.5;
+    vec2 p = gl_FragCoord.xy - timestep * scale * unpack(texture2D(velocity, uv));
 
-    fragColor = vec4(vec3(dissipation * bilerp(advected, p), 0.0) * 0.5 + 0.5, 1.0);
+    fragColor = pack(dissipation * bilerp(advected, p));
 }

@@ -42,6 +42,9 @@ int main(int, char **) {
     sf::Vector2f lastPos;
 
     bool isFullscreen = false;
+
+    sf::Color zeroColor(0, 0, 0, 0);
+
     sf::VideoMode videoMode(windowWidth, windowHeight);
     sf::Vector2i windowPos;
 
@@ -61,8 +64,8 @@ int main(int, char **) {
         textures[i][0].create(gridWidth, gridHeight);
         textures[i][1].create(gridWidth, gridHeight);
 
-        textures[i][0].clear(sf::Color(127, 127, 127, 255));
-        textures[i][1].clear(sf::Color(127, 127, 127, 255));
+        textures[i][0].clear(zeroColor);
+        textures[i][1].clear(zeroColor);
     }
 
     while (window.isOpen()) {
@@ -100,8 +103,8 @@ int main(int, char **) {
 
                 case sf::Keyboard::R:
                     for (int i = 0; i < TextureCount; i++) {
-                        textures[i][0].clear(sf::Color(127, 127, 127, 255));
-                        textures[i][1].clear(sf::Color(127, 127, 127, 255));
+                        textures[i][0].clear(zeroColor);
+                        textures[i][1].clear(zeroColor);
                     }
 
                     break;
@@ -198,12 +201,12 @@ int main(int, char **) {
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::V)) {
             display.setUniform("read", read(Velocity).getTexture());
-            display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
-            display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
+            display.setUniform("bias", sf::Glsl::Vec3(0.5, 0.5, 0.5));
+            display.setUniform("scale", sf::Glsl::Vec3(0.5, 0.5, 0.5));
         } else {
             display.setUniform("read", read(Density).getTexture());
-            display.setUniform("bias", sf::Glsl::Vec3(-1, -1, -1));
-            display.setUniform("scale", sf::Glsl::Vec3(2, 2, 2));
+            display.setUniform("bias", sf::Glsl::Vec3(0.5, 0.5, 0.5));
+            display.setUniform("scale", sf::Glsl::Vec3(0.5, 0.5, 0.5));
         }
 
         display.setUniform("resolution", sf::Glsl::Vec2(window.getSize()));

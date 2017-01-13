@@ -1,4 +1,3 @@
-#version 330
 out vec4 fragColor;
 
 uniform sampler2D velocity;
@@ -16,10 +15,10 @@ vec2 bilerp(sampler2D d, vec2 p) {
     ij.zw = ij.xy + 1.0;
 
     vec4 uv = ij / gridSize.xyxy;
-    vec2 d11 = (texture2D(d, uv.xy).xy - 0.5) / 0.5;
-    vec2 d21 = (texture2D(d, uv.zy).xy - 0.5) / 0.5;
-    vec2 d12 = (texture2D(d, uv.xw).xy - 0.5) / 0.5;
-    vec2 d22 = (texture2D(d, uv.zw).xy - 0.5) / 0.5;
+    vec2 d11 = texture2D(d, uv.xy).xy;
+    vec2 d21 = texture2D(d, uv.zy).xy;
+    vec2 d12 = texture2D(d, uv.xw).xy;
+    vec2 d22 = texture2D(d, uv.zw).xy;
 
     vec2 a = p - ij.xy;
 
@@ -31,7 +30,7 @@ void main() {
     float scale = 1.0 / gridScale;
 
     // trace point back in time
-    vec2 p = gl_FragCoord.xy - timestep * scale * (texture2D(velocity, uv).xy - 0.5) / 0.5;
+    vec2 p = gl_FragCoord.xy - timestep * scale * texture2D(velocity, uv).xy;
 
-    fragColor = vec4(vec3(dissipation * bilerp(advected, p), 0.0) * 0.5 + 0.5, 1.0);
+    fragColor = vec4(dissipation * bilerp(advected, p), 0.0, 1.0);
 }

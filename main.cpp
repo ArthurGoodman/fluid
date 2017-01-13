@@ -204,8 +204,8 @@ int main(int, char **) {
             display.setUniform("scale", sf::Glsl::Vec3(0.5, 0.5, 0.5));
         } else {
             display.setUniform("read", read(Density).getTexture());
-            display.setUniform("bias", sf::Glsl::Vec3(0.5, 0.5, 0.5));
-            display.setUniform("scale", sf::Glsl::Vec3(0.5, 0.5, 0.5));
+            display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
+            display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
         }
 
         display.setUniform("resolution", sf::Glsl::Vec2(window.getSize()));

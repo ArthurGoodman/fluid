@@ -36,6 +36,7 @@ static sf::RenderTexture &read(TextureIndex i) {
 
 int main(int, char **) {
     const char *windowTitle = "Fluid";
+
     const int windowWidth = 1366;
     const int windowHeight = 768;
 
@@ -58,6 +59,11 @@ int main(int, char **) {
                                   1.0, 0.0, 0.0, 0.0,
                                   1.0, 0.0, 0.0, 0.0,
                                   0.0, 0.0, 0.0, 1.0};
+
+    const float pressureScale[] = {0.5, 0.0, 0.0, 0.5,
+                                   0.5, 0.0, 0.0, 0.5,
+                                   0.5, 0.0, 0.0, 0.5,
+                                   0.0, 0.0, 0.0, 1.0};
 
     sf::Vector2i mousePos;
     sf::Vector2f lastPos;
@@ -339,6 +345,12 @@ int main(int, char **) {
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::V)) {
             display.setUniform("read", read(Velocity).getTexture());
             display.setUniform("scale", sf::Glsl::Mat4(velocityScale));
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::P)) {
+            display.setUniform("read", read(Pressure).getTexture());
+            display.setUniform("scale", sf::Glsl::Mat4(pressureScale));
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
+            display.setUniform("read", read(VelocityDivergence).getTexture());
+            display.setUniform("scale", sf::Glsl::Mat4(pressureScale));
         } else {
             display.setUniform("read", read(Density).getTexture());
             display.setUniform("scale", sf::Glsl::Mat4(displayScale));

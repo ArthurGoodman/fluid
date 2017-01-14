@@ -194,12 +194,12 @@ int main(int, char **) {
         sf::RectangleShape rect(sf::Vector2f(gridWidth, gridHeight));
         sf::RectangleShape windowRect(window.getView().getSize());
 
-        sf::CircleShape circle(10);
-        circle.setOrigin(circle.getRadius(), circle.getRadius());
-        circle.setPosition(gridWidth / 2, gridHeight / 2);
+//        sf::CircleShape circle(10);
+//        circle.setOrigin(circle.getRadius(), circle.getRadius());
+//        circle.setPosition(gridWidth / 2, gridHeight / 2);
 
-        read(Density).draw(circle);
-        read(Temperature).draw(circle);
+//        read(Density).draw(circle);
+//        read(Temperature).draw(circle);
 
         sf::RenderStates states;
         states.shader = &advect;
@@ -272,7 +272,7 @@ int main(int, char **) {
         buoyancy.setUniform("temperature", read(Temperature).getTexture());
         buoyancy.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
         buoyancy.setUniform("timestep", timestep);
-        buoyancy.setUniform("k", 600.0f);
+        buoyancy.setUniform("k", 1.0f);
         buoyancy.setUniform("buoyancyFactor", 0.001f);
 
         write(Velocity).draw(rect, states);

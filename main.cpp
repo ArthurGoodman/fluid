@@ -38,11 +38,14 @@ static sf::RenderTexture &read(TextureIndex i) {
 int main(int, char **) {
     const char *windowTitle = "Fluid";
 
-    const int windowWidth = sf::VideoMode::getDesktopMode().width / 1.4;
-    const int windowHeight = sf::VideoMode::getDesktopMode().height / 1.4;
+    const float windowDownscale = 1.5;
+    const float gridDownscale = 2;
 
-    const int gridWidth = windowWidth / 2;
-    const int gridHeight = windowHeight / 2;
+    const int windowWidth = sf::VideoMode::getDesktopMode().width / windowDownscale;
+    const int windowHeight = sf::VideoMode::getDesktopMode().height / windowDownscale;
+
+    const int gridWidth = windowWidth / gridDownscale;
+    const int gridHeight = windowHeight / gridDownscale;
 
     const float gridScale = 1.0f;
     const float timestep = 1.0f;
@@ -194,12 +197,12 @@ int main(int, char **) {
         sf::RectangleShape rect(sf::Vector2f(gridWidth, gridHeight));
         sf::RectangleShape windowRect(window.getView().getSize());
 
-//        sf::CircleShape circle(10);
-//        circle.setOrigin(circle.getRadius(), circle.getRadius());
-//        circle.setPosition(gridWidth / 2, gridHeight / 2);
+        sf::CircleShape circle(5);
+        circle.setOrigin(circle.getRadius(), circle.getRadius());
+        circle.setPosition(gridWidth / 2, gridHeight / 2);
 
-//        read(Density).draw(circle);
-//        read(Temperature).draw(circle);
+        read(Density).draw(circle);
+        read(Temperature).draw(circle);
 
         sf::RenderStates states;
         states.shader = &advect;
@@ -217,14 +220,14 @@ int main(int, char **) {
 
         advect.setUniform("velocity", read(Velocity).getTexture());
         advect.setUniform("advected", read(Density).getTexture());
-        advect.setUniform("dissipation", 0.998f);
+        advect.setUniform("dissipation", 0.999f);
 
         write(Density).draw(rect, states);
         swap(Density);
 
         advect.setUniform("velocity", read(Velocity).getTexture());
         advect.setUniform("advected", read(Temperature).getTexture());
-        advect.setUniform("dissipation", 0.998f);
+        advect.setUniform("dissipation", 0.999f);
 
         write(Temperature).draw(rect, states);
         swap(Temperature);
@@ -264,16 +267,22 @@ int main(int, char **) {
 
             write(Density).draw(rect, states);
             swap(Density);
+
+            splat.setUniform("color", sf::Glsl::Vec3(1, 0, 0));
+
+            write(Temperature).draw(rect, states);
+            swap(Temperature);
         }
 
         states.shader = &buoyancy;
 
+        buoyancy.setUniform("velocity", read(Velocity).getTexture());
         buoyancy.setUniform("density", read(Density).getTexture());
         buoyancy.setUniform("temperature", read(Temperature).getTexture());
         buoyancy.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
         buoyancy.setUniform("timestep", timestep);
-        buoyancy.setUniform("k", 1.0f);
-        buoyancy.setUniform("buoyancyFactor", 0.001f);
+        buoyancy.setUniform("k", 0.001f);
+        buoyancy.setUniform("buoyancyFactor", 0.01f);
 
         write(Velocity).draw(rect, states);
         swap(Velocity);
@@ -285,14 +294,14 @@ int main(int, char **) {
 
             vorticity.setUniform("velocity", read(Velocity).getTexture());
             vorticity.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            vorticity.setUniform("gridScale", 1.0f);
+            vorticity.setUniform("gridScale", gridScale);
 
             write(VelocityVorticity).draw(rect, states);
             swap(VelocityVorticity);
 
             states.shader = &vorticityForce;
 
-            static const float curl = 0.05f;
+            static const float curl = 0.025f;
 
             vorticityForce.setUniform("velocity", read(Velocity).getTexture());
             vorticityForce.setUniform("vorticity", read(VelocityVorticity).getTexture());

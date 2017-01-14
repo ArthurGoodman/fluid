@@ -1,4 +1,4 @@
-out vec4 fragColor;
+varying out vec4 fragColor;
 
 uniform sampler2D velocity;
 uniform sampler2D advected;

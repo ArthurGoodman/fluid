@@ -11,6 +11,7 @@ enum TextureIndex {
     VelocityDivergence,
     VelocityVorticity,
     Pressure,
+    Temperature,
 
     TextureCount
 };
@@ -37,8 +38,8 @@ static sf::RenderTexture &read(TextureIndex i) {
 int main(int, char **) {
     const char *windowTitle = "Fluid";
 
-    const int windowWidth = 1366;
-    const int windowHeight = 768;
+    const int windowWidth = sf::VideoMode::getDesktopMode().width / 1.4;
+    const int windowHeight = sf::VideoMode::getDesktopMode().height / 1.4;
 
     const int gridWidth = windowWidth / 2;
     const int gridHeight = windowHeight / 2;
@@ -101,6 +102,9 @@ int main(int, char **) {
 
     sf::Shader vorticityForce;
     vorticityForce.loadFromFile("vorticityForce.frag", sf::Shader::Fragment);
+
+    sf::Shader buoyancy;
+    buoyancy.loadFromFile("buoyancy.frag", sf::Shader::Fragment);
 
     for (int i = 0; i < TextureCount; i++) {
         textures[i][0].create(gridWidth, gridHeight);
@@ -195,6 +199,7 @@ int main(int, char **) {
         circle.setPosition(gridWidth / 2, gridHeight / 2);
 
         read(Density).draw(circle);
+        read(Temperature).draw(circle);
 
         sf::RenderStates states;
         states.shader = &advect;
@@ -216,6 +221,13 @@ int main(int, char **) {
 
         write(Density).draw(rect, states);
         swap(Density);
+
+        advect.setUniform("velocity", read(Velocity).getTexture());
+        advect.setUniform("advected", read(Temperature).getTexture());
+        advect.setUniform("dissipation", 0.998f);
+
+        write(Temperature).draw(rect, states);
+        swap(Temperature);
 
         sf::Vector2f pos(mousePos);
 
@@ -253,6 +265,18 @@ int main(int, char **) {
             write(Density).draw(rect, states);
             swap(Density);
         }
+
+        states.shader = &buoyancy;
+
+        buoyancy.setUniform("density", read(Density).getTexture());
+        buoyancy.setUniform("temperature", read(Temperature).getTexture());
+        buoyancy.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+        buoyancy.setUniform("timestep", timestep);
+        buoyancy.setUniform("k", 600.0f);
+        buoyancy.setUniform("buoyancyFactor", 0.001f);
+
+        write(Velocity).draw(rect, states);
+        swap(Velocity);
 
         static const bool useVorticity = true;
 
@@ -350,6 +374,9 @@ int main(int, char **) {
             display.setUniform("scale", sf::Glsl::Mat4(pressureScale));
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
             display.setUniform("read", read(VelocityDivergence).getTexture());
+            display.setUniform("scale", sf::Glsl::Mat4(pressureScale));
+        } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
+            display.setUniform("read", read(Temperature).getTexture());
             display.setUniform("scale", sf::Glsl::Mat4(pressureScale));
         } else {
             display.setUniform("read", read(Density).getTexture());

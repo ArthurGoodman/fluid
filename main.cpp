@@ -10,12 +10,13 @@ enum ShaderIndex {
     Splat,
     Display,
     Divergence,
-    Jacobiscalar,
-    Jacobivector,
+    JacobiScalar,
+    JacobiVector,
     Gradient,
     Vorticity,
     VorticityForce,
     Buoyancy,
+    Boundary,
 
     ShaderCount
 };
@@ -30,7 +31,8 @@ const char *shaderFileNames[] = {
     "gradient.frag",
     "vorticity.frag",
     "vorticityForce.frag",
-    "buoyancy.frag"};
+    "buoyancy.frag",
+    "boundary.frag"};
 
 enum TextureIndex {
     Velocity = 0,
@@ -47,28 +49,65 @@ static sf::Shader shaders[ShaderCount];
 static sf::RenderTexture textures[TextureCount][2];
 static int indices[TextureCount];
 
-static int next(int i) {
+static int gridWidth, gridHeight;
+sf::RectangleShape rect;
+
+static inline int next(int i) {
     return (indices[i] + 1) % 2;
 }
 
-static void swap(int i) {
+static inline void swap(int i) {
     indices[i] = next(i);
 }
 
-static sf::RenderTexture &write(int i) {
+static inline sf::RenderTexture &write(int i) {
     return textures[i][indices[i]];
 }
 
-static sf::RenderTexture &read(int i) {
+static inline sf::RenderTexture &read(int i) {
     return textures[i][next(i)];
 }
 
-static sf::Shader &shader(int i) {
+static inline sf::Shader &shader(int i) {
     return shaders[i];
 }
 
-static const char *shaderFileName(int i) {
+static inline const char *shaderFileName(int i) {
     return shaderFileNames[i];
+}
+
+static void render(int shaderIndex, int textureIndex) {
+    float scale;
+
+    switch (textureIndex) {
+    case Velocity:
+        scale = -1;
+        break;
+
+    case Pressure:
+        scale = 1;
+        break;
+
+    default:
+        scale = 0;
+        break;
+    }
+
+    sf::RenderStates states;
+
+    states.shader = &shader(shaderIndex);
+
+    write(textureIndex).draw(rect, states);
+    swap(textureIndex);
+
+    states.shader = &shader(Boundary);
+
+    shader(Boundary).setUniform("read", read(textureIndex).getTexture());
+    shader(Boundary).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+    shader(Boundary).setUniform("scale", scale);
+
+    write(textureIndex).draw(rect, states);
+    swap(textureIndex);
 }
 
 int main(int, char **) {
@@ -80,11 +119,13 @@ int main(int, char **) {
     const int windowWidth = sf::VideoMode::getDesktopMode().width / windowDownscale;
     const int windowHeight = sf::VideoMode::getDesktopMode().height / windowDownscale;
 
-    const int gridWidth = windowWidth / gridDownscale;
-    const int gridHeight = windowHeight / gridDownscale;
+    gridWidth = windowWidth / gridDownscale;
+    gridHeight = windowHeight / gridDownscale;
 
-    const float gridScale = 1.0f;
-    const float timestep = 1.0f;
+    rect = sf::RectangleShape(sf::Vector2f(gridWidth, gridHeight));
+
+    const float gridScale = 1;
+    const float timestep = 1;
 
     const sf::Color zeroColor;
 
@@ -130,19 +171,22 @@ int main(int, char **) {
         GLint textureBinding;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &textureBinding);
 
+        static bool useHalfFloats = true;
+
+        GLint internalFormat = useHalfFloats ? GL_RGBA16F : GL_RGBA32F;
+        GLenum type = useHalfFloats ? GL_HALF_FLOAT : GL_FLOAT;
+
         sf::Texture::bind(&write(i).getTexture());
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, gridWidth, gridHeight, 0, GL_RGBA, GL_HALF_FLOAT, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, gridWidth, gridHeight, 0, GL_RGBA, type, 0);
 
         sf::Texture::bind(&read(i).getTexture());
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, gridWidth, gridHeight, 0, GL_RGBA, GL_HALF_FLOAT, 0);
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, gridWidth, gridHeight, 0, GL_RGBA, type, 0);
 
         glBindTexture(GL_TEXTURE_2D, textureBinding);
 
         write(i).clear(zeroColor);
         read(i).clear(zeroColor);
     }
-
-    sf::RenderStates states;
 
     while (window.isOpen()) {
         sf::Event event;
@@ -183,6 +227,7 @@ int main(int, char **) {
                         read(i).clear(zeroColor);
                     }
 
+                    pause = false;
                     break;
 
                 case sf::Keyboard::Space:
@@ -216,8 +261,6 @@ int main(int, char **) {
             }
 
         if (!pause) {
-            sf::RectangleShape rect(sf::Vector2f(gridWidth, gridHeight));
-
             ////////////////////////////////////////////////////////////////////////////////
             /// Permanent source of density and temperature
             ////////////////////////////////////////////////////////////////////////////////
@@ -233,8 +276,6 @@ int main(int, char **) {
             /// Advection
             ////////////////////////////////////////////////////////////////////////////////
 
-            states.shader = &shader(Advect);
-
             shader(Advect).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
             shader(Advect).setUniform("gridScale", gridScale);
             shader(Advect).setUniform("timestep", timestep);
@@ -243,22 +284,19 @@ int main(int, char **) {
             shader(Advect).setUniform("advected", read(Velocity).getTexture());
             shader(Advect).setUniform("dissipation", 1.0f);
 
-            write(Velocity).draw(rect, states);
-            swap(Velocity);
+            render(Advect, Velocity);
 
             shader(Advect).setUniform("velocity", read(Velocity).getTexture());
             shader(Advect).setUniform("advected", read(Density).getTexture());
             shader(Advect).setUniform("dissipation", 0.999f);
 
-            write(Density).draw(rect, states);
-            swap(Density);
+            render(Advect, Density);
 
             shader(Advect).setUniform("velocity", read(Velocity).getTexture());
             shader(Advect).setUniform("advected", read(Temperature).getTexture());
             shader(Advect).setUniform("dissipation", 0.999f);
 
-            write(Temperature).draw(rect, states);
-            swap(Temperature);
+            render(Advect, Temperature);
 
             ////////////////////////////////////////////////////////////////////////////////
             /// Adding forces and densities from mouse movement
@@ -276,42 +314,35 @@ int main(int, char **) {
             pos.y = (float)(window.getSize().y - pos.y) / window.getSize().y * gridHeight;
 
             if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-                states.shader = &shader(Splat);
-
                 shader(Splat).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
                 shader(Splat).setUniform("read", read(Velocity).getTexture());
                 shader(Splat).setUniform("color", sf::Glsl::Vec3(drag.x, -drag.y, 0));
                 shader(Splat).setUniform("point", sf::Glsl::Vec2(pos));
                 shader(Splat).setUniform("radius", 0.01f);
 
-                write(Velocity).draw(rect, states);
-                swap(Velocity);
+                render(Splat, Velocity);
             }
 
             if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
-                states.shader = &shader(Splat);
-
                 shader(Splat).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
                 shader(Splat).setUniform("point", sf::Glsl::Vec2(pos));
                 shader(Splat).setUniform("color", sf::Glsl::Vec3(0.8, 0, 0));
                 shader(Splat).setUniform("radius", 0.01f);
 
                 shader(Splat).setUniform("read", read(Density).getTexture());
+                shader(Splat).setUniform("color", sf::Glsl::Vec3(0.8, 0, 0));
 
-                write(Density).draw(rect, states);
-                swap(Density);
+                render(Splat, Density);
 
                 shader(Splat).setUniform("read", read(Temperature).getTexture());
+                shader(Splat).setUniform("color", sf::Glsl::Vec3(0.5, 0, 0));
 
-                write(Temperature).draw(rect, states);
-                swap(Temperature);
+                render(Splat, Temperature);
             }
 
             ////////////////////////////////////////////////////////////////////////////////
             /// Buoyancy
             ////////////////////////////////////////////////////////////////////////////////
-
-            states.shader = &shader(Buoyancy);
 
             shader(Buoyancy).setUniform("read", read(Velocity).getTexture());
             shader(Buoyancy).setUniform("density", read(Density).getTexture());
@@ -321,8 +352,7 @@ int main(int, char **) {
             shader(Buoyancy).setUniform("k", 0.0005f);
             shader(Buoyancy).setUniform("buoyancyFactor", 0.01f);
 
-            write(Velocity).draw(rect, states);
-            swap(Velocity);
+            render(Buoyancy, Velocity);
 
             ////////////////////////////////////////////////////////////////////////////////
             /// Vorticity
@@ -331,18 +361,13 @@ int main(int, char **) {
             static const bool useVorticity = true;
 
             if (useVorticity) {
-                states.shader = &shader(Vorticity);
-
                 shader(Vorticity).setUniform("velocity", read(Velocity).getTexture());
                 shader(Vorticity).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
                 shader(Vorticity).setUniform("gridScale", gridScale);
 
-                write(VelocityVorticity).draw(rect, states);
-                swap(VelocityVorticity);
+                render(Vorticity, VelocityVorticity);
 
-                states.shader = &shader(VorticityForce);
-
-                static const float curl = 0.025f;
+                static const float curl = 0.025;
 
                 shader(VorticityForce).setUniform("velocity", read(Velocity).getTexture());
                 shader(VorticityForce).setUniform("vorticity", read(VelocityVorticity).getTexture());
@@ -352,8 +377,7 @@ int main(int, char **) {
                 shader(VorticityForce).setUniform("epsilon", 2.4414e-4f);
                 shader(VorticityForce).setUniform("curl", sf::Glsl::Vec2(curl * gridScale, curl * gridScale));
 
-                write(Velocity).draw(rect, states);
-                swap(Velocity);
+                render(VorticityForce, Velocity);
             }
 
             ////////////////////////////////////////////////////////////////////////////////
@@ -363,22 +387,19 @@ int main(int, char **) {
             static const bool useViscosity = false;
 
             if (useViscosity) {
-                states.shader = &shader(Jacobivector);
-
-                static const float viscosity = 0.05f;
+                static const float viscosity = 0.05;
 
                 float alpha = gridScale * gridScale / (viscosity * timestep);
 
-                shader(Jacobivector).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-                shader(Jacobivector).setUniform("alpha", alpha);
-                shader(Jacobivector).setUniform("beta", 4.0f + alpha);
+                shader(JacobiVector).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+                shader(JacobiVector).setUniform("alpha", alpha);
+                shader(JacobiVector).setUniform("beta", 4.0f + alpha);
 
                 for (int i = 0; i < numJacobiIterations; i++) {
-                    shader(Jacobivector).setUniform("x", read(Velocity).getTexture());
-                    shader(Jacobivector).setUniform("b", read(Velocity).getTexture());
+                    shader(JacobiVector).setUniform("x", read(Velocity).getTexture());
+                    shader(JacobiVector).setUniform("b", read(Velocity).getTexture());
 
-                    write(Velocity).draw(rect, states);
-                    swap(Velocity);
+                    render(JacobiVector, Velocity);
                 }
             }
 
@@ -386,41 +407,32 @@ int main(int, char **) {
             /// Projection operator
             ////////////////////////////////////////////////////////////////////////////////
 
-            states.shader = &shader(Divergence);
-
             shader(Divergence).setUniform("velocity", read(Velocity).getTexture());
             shader(Divergence).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
             shader(Divergence).setUniform("gridScale", gridScale);
 
-            write(VelocityDivergence).draw(rect, states);
-            swap(VelocityDivergence);
+            render(Divergence, VelocityDivergence);
 
             write(Pressure).clear(zeroColor);
             swap(Pressure);
 
-            states.shader = &shader(Jacobiscalar);
-
-            shader(Jacobiscalar).setUniform("b", read(VelocityDivergence).getTexture());
-            shader(Jacobiscalar).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            shader(Jacobiscalar).setUniform("alpha", -gridScale * gridScale);
-            shader(Jacobiscalar).setUniform("beta", 4.0f);
+            shader(JacobiScalar).setUniform("b", read(VelocityDivergence).getTexture());
+            shader(JacobiScalar).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            shader(JacobiScalar).setUniform("alpha", -gridScale * gridScale);
+            shader(JacobiScalar).setUniform("beta", 4.0f);
 
             for (int i = 0; i < numJacobiIterations; i++) {
-                shader(Jacobiscalar).setUniform("x", read(Pressure).getTexture());
+                shader(JacobiScalar).setUniform("x", read(Pressure).getTexture());
 
-                write(Pressure).draw(rect, states);
-                swap(Pressure);
+                render(JacobiScalar, Pressure);
             }
-
-            states.shader = &shader(Gradient);
 
             shader(Gradient).setUniform("p", read(Pressure).getTexture());
             shader(Gradient).setUniform("w", read(Velocity).getTexture());
             shader(Gradient).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
             shader(Gradient).setUniform("gridScale", gridScale);
 
-            write(Velocity).draw(rect, states);
-            swap(Velocity);
+            render(Gradient, Velocity);
         }
 
         ////////////////////////////////////////////////////////////////////////////////
@@ -429,6 +441,7 @@ int main(int, char **) {
 
         sf::RectangleShape windowRect(window.getView().getSize());
 
+        sf::RenderStates states;
         states.shader = &shader(Display);
 
         shader(Display).setUniform("resolution", sf::Glsl::Vec2(window.getSize()));

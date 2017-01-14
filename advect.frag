@@ -26,7 +26,7 @@ vec2 bilerp(sampler2D d, vec2 p) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / gridSize.xy;
+    vec2 uv = gl_FragCoord.xy / gridSize;
     float scale = 1.0 / gridScale;
 
     // trace point back in time

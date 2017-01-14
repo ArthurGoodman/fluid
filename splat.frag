@@ -13,7 +13,7 @@ float gauss(vec2 p, float r) {
 }
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / gridSize.xy;
+    vec2 uv = gl_FragCoord.xy / gridSize;
     vec3 base = texture2D(read, uv).xyz;
     vec2 coord = point.xy - gl_FragCoord.xy;
     vec3 splat = color * gauss(coord, gridSize.x * radius);

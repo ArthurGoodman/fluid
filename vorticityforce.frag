@@ -11,7 +11,7 @@ uniform float epsilon;
 uniform vec2 curl;
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / gridSize.xy;
+    vec2 uv = gl_FragCoord.xy / gridSize;
 
     vec2 xOffset = vec2(1.0 / gridSize.x, 0.0);
     vec2 yOffset = vec2(0.0, 1.0 / gridSize.y);

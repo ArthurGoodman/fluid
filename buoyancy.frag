@@ -11,6 +11,6 @@ uniform float k;
 uniform float buoyancyFactor;
 
 void main() {
-    vec2 uv = gl_FragCoord.xy / gridSize.xy;
+    vec2 uv = gl_FragCoord.xy / gridSize;
     fragColor = vec4(texture2D(read, uv).xy + timestep * (-k * texture2D(density, uv).x + buoyancyFactor * texture2D(temperature, uv).x) * vec2(0.0, 1.0), 0.0, 1.0);
 }

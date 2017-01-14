@@ -59,6 +59,15 @@ int main(int, char **) {
     sf::Shader display;
     display.loadFromFile("display.frag", sf::Shader::Fragment);
 
+    sf::Shader divergence;
+    divergence.loadFromFile("divergence.frag", sf::Shader::Fragment);
+
+    sf::Shader jacobiscalar;
+    jacobiscalar.loadFromFile("jacobiscalar.frag", sf::Shader::Fragment);
+
+    sf::Shader gradient;
+    gradient.loadFromFile("gradient.frag", sf::Shader::Fragment);
+
     for (int i = 0; i < TextureCount; i++) {
         textures[i][0].create(gridWidth, gridHeight, false, sf::Texture::FloatFormat);
         textures[i][1].create(gridWidth, gridHeight, false, sf::Texture::FloatFormat);
@@ -195,6 +204,41 @@ int main(int, char **) {
             write(Density).draw(rect, states);
             swap(Density);
         }
+
+        states.shader = &divergence;
+
+        divergence.setUniform("velocity", read(Velocity).getTexture());
+        divergence.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+        divergence.setUniform("gridScale", 1.0f);
+
+        write(VelocityDivergence).draw(rect, states);
+        swap(VelocityDivergence);
+
+        write(Pressure).clear(zeroColor);
+        swap(Pressure);
+
+        states.shader = &jacobiscalar;
+
+        for (int i = 0; i < 50; i++) {
+            jacobiscalar.setUniform("x", read(Pressure).getTexture());
+            jacobiscalar.setUniform("b", read(VelocityDivergence).getTexture());
+            jacobiscalar.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            jacobiscalar.setUniform("alpha", -1.0f);
+            jacobiscalar.setUniform("beta", 4.0f);
+
+            write(Pressure).draw(rect, states);
+            swap(Pressure);
+        }
+
+        states.shader = &gradient;
+
+        gradient.setUniform("p", read(Pressure).getTexture());
+        gradient.setUniform("w", read(Velocity).getTexture());
+        gradient.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+        gradient.setUniform("gridScale", 1.0f);
+
+        write(Velocity).draw(rect, states);
+        swap(Velocity);
 
         states.shader = &display;
 

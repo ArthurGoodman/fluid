@@ -46,6 +46,16 @@ int main(int, char **) {
 
     const int numJacobiIterations = 50;
 
+    const float velocityScale[] = {0.5, 0.0, 0.0, 0.5,
+                                   0.0, 0.5, 0.0, 0.5,
+                                   0.0, 0.0, 0.5, 0.5,
+                                   0.0, 0.0, 0.0, 1.0};
+
+    const float displayScale[] = {1.0, 0.0, 0.0, 0.0,
+                                  1.0, 0.0, 0.0, 0.0,
+                                  1.0, 0.0, 0.0, 0.0,
+                                  0.0, 0.0, 0.0, 1.0};
+
     sf::Vector2i mousePos;
     sf::Vector2f lastPos;
 
@@ -262,12 +272,10 @@ int main(int, char **) {
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::V)) {
             display.setUniform("read", read(Velocity).getTexture());
-            display.setUniform("bias", sf::Glsl::Vec3(0.5, 0.5, 0.5));
-            display.setUniform("scale", sf::Glsl::Vec3(0.5, 0.5, 0.5));
+            display.setUniform("scale", sf::Glsl::Mat4(velocityScale));
         } else {
             display.setUniform("read", read(Density).getTexture());
-            display.setUniform("bias", sf::Glsl::Vec3(0, 0, 0));
-            display.setUniform("scale", sf::Glsl::Vec3(1, 1, 1));
+            display.setUniform("scale", sf::Glsl::Mat4(displayScale));
         }
 
         display.setUniform("resolution", sf::Glsl::Vec2(window.getSize()));

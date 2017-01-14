@@ -51,7 +51,7 @@ int main(int, char **) {
 
     const float velocityScale[] = {0.5, 0.0, 0.0, 0.5,
                                    0.0, 0.5, 0.0, 0.5,
-                                   0.0, 0.0, 0.5, 0.5,
+                                   0.0, 0.0, 0.0, 0.5,
                                    0.0, 0.0, 0.0, 1.0};
 
     const float displayScale[] = {1.0, 0.0, 0.0, 0.0,
@@ -183,6 +183,12 @@ int main(int, char **) {
 
         sf::RectangleShape rect(sf::Vector2f(gridWidth, gridHeight));
         sf::RectangleShape windowRect(window.getView().getSize());
+
+        sf::CircleShape circle(10);
+        circle.setOrigin(circle.getRadius(), circle.getRadius());
+        circle.setPosition(gridWidth / 2, gridHeight / 2);
+
+        read(Density).draw(circle);
 
         sf::RenderStates states;
         states.shader = &advect;

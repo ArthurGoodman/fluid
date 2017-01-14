@@ -139,7 +139,7 @@ int main(int, char **) {
         0.0, 0.0, 0.0, 0.5,
         0.0, 0.0, 0.0, 1.0};
 
-    const float displayScale[] = {
+    const float densityScale[] = {
         1.0, 0.0, 0.0, 0.0,
         1.0, 0.0, 0.0, 0.0,
         1.0, 0.0, 0.0, 0.0,
@@ -173,10 +173,10 @@ int main(int, char **) {
         GLint textureBinding;
         glGetIntegerv(GL_TEXTURE_BINDING_2D, &textureBinding);
 
-        static bool useHalfFloats = true;
+        static const bool useFloats = false;
 
-        GLint internalFormat = useHalfFloats ? GL_RGBA16F : GL_RGBA32F;
-        GLenum type = useHalfFloats ? GL_HALF_FLOAT : GL_FLOAT;
+        GLint internalFormat = useFloats ? GL_RGBA32F : GL_RGBA16F;
+        GLenum type = useFloats ? GL_FLOAT : GL_HALF_FLOAT;
 
         sf::Texture::bind(&write(i).getTexture());
         glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, gridWidth, gridHeight, 0, GL_RGBA, type, 0);
@@ -478,10 +478,10 @@ int main(int, char **) {
             shader(Display).setUniform("scale", sf::Glsl::Mat4(pressureScale));
         } else if (sf::Keyboard::isKeyPressed(sf::Keyboard::T)) {
             shader(Display).setUniform("read", read(Temperature).getTexture());
-            shader(Display).setUniform("scale", sf::Glsl::Mat4(displayScale));
+            shader(Display).setUniform("scale", sf::Glsl::Mat4(pressureScale));
         } else {
             shader(Display).setUniform("read", read(Density).getTexture());
-            shader(Display).setUniform("scale", sf::Glsl::Mat4(displayScale));
+            shader(Display).setUniform("scale", sf::Glsl::Mat4(densityScale));
         }
 
         sf::RectangleShape windowRect(window.getView().getSize());

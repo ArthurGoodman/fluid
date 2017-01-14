@@ -1,6 +1,10 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/OpenGL.hpp>
 
+#define GL_HALF_FLOAT 0x140b
+#define GL_RGBA32F 0x8814
+#define GL_RGBA16F 0x881a
+
 enum TextureIndex {
     Velocity = 0,
     Density,
@@ -38,7 +42,9 @@ int main(int, char **) {
     const int gridWidth = windowWidth / 2;
     const int gridHeight = windowHeight / 2;
 
-    sf::Color zeroColor;
+    const sf::Color zeroColor;
+
+    const int numJacobiIterations = 50;
 
     sf::Vector2i mousePos;
     sf::Vector2f lastPos;
@@ -69,8 +75,19 @@ int main(int, char **) {
     gradient.loadFromFile("gradient.frag", sf::Shader::Fragment);
 
     for (int i = 0; i < TextureCount; i++) {
-        textures[i][0].create(gridWidth, gridHeight, false, sf::Texture::FloatFormat);
-        textures[i][1].create(gridWidth, gridHeight, false, sf::Texture::FloatFormat);
+        textures[i][0].create(gridWidth, gridHeight);
+        textures[i][1].create(gridWidth, gridHeight);
+
+        GLint textureBinding;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &textureBinding);
+
+        sf::Texture::bind(&textures[i][0].getTexture());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, gridWidth, gridHeight, 0, GL_RGBA, GL_HALF_FLOAT, 0);
+
+        sf::Texture::bind(&textures[i][1].getTexture());
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, gridWidth, gridHeight, 0, GL_RGBA, GL_HALF_FLOAT, 0);
+
+        glBindTexture(GL_TEXTURE_2D, textureBinding);
 
         textures[i][0].clear(zeroColor);
         textures[i][1].clear(zeroColor);
@@ -219,12 +236,13 @@ int main(int, char **) {
 
         states.shader = &jacobiscalar;
 
-        for (int i = 0; i < 50; i++) {
+        jacobiscalar.setUniform("b", read(VelocityDivergence).getTexture());
+        jacobiscalar.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+        jacobiscalar.setUniform("alpha", -1.0f);
+        jacobiscalar.setUniform("beta", 4.0f);
+
+        for (int i = 0; i < numJacobiIterations; i++) {
             jacobiscalar.setUniform("x", read(Pressure).getTexture());
-            jacobiscalar.setUniform("b", read(VelocityDivergence).getTexture());
-            jacobiscalar.setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            jacobiscalar.setUniform("alpha", -1.0f);
-            jacobiscalar.setUniform("beta", 4.0f);
 
             write(Pressure).draw(rect, states);
             swap(Pressure);

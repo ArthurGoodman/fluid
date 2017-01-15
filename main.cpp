@@ -212,6 +212,7 @@ int main(int, char **) {
                     break;
 
                 case sf::Keyboard::F11:
+                case sf::Keyboard::F:
                     if (isFullscreen) {
                         window.create(videoMode, windowTitle, sf::Style::Default);
                         window.setPosition(windowPos);
@@ -305,8 +306,8 @@ int main(int, char **) {
             sf::Vector2f pos(mousePos);
 
             sf::Vector2f drag = pos - lastPos;
-            drag.x = std::max(-1.0f, std::min(drag.x, 1.0f));
-            drag.y = std::max(-1.0f, std::min(drag.y, 1.0f));
+            // drag.x = std::max(-1.0f, std::min(drag.x, 1.0f));
+            // drag.y = std::max(-1.0f, std::min(drag.y, 1.0f));
 
             lastPos = pos;
 

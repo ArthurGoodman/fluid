@@ -85,23 +85,11 @@ static void render(int shaderIndex, int textureIndex) {
     swap(textureIndex);
 
     if (textureIndex == Velocity || textureIndex == Pressure) {
-        float scale = 0;
-
-        switch (textureIndex) {
-        case Velocity:
-            scale = -1;
-            break;
-
-        case Pressure:
-            scale = 1;
-            break;
-        }
-
         states.shader = &shader(Boundary);
 
         shader(Boundary).setUniform("read", read(textureIndex).getTexture());
         shader(Boundary).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-        shader(Boundary).setUniform("scale", scale);
+        shader(Boundary).setUniform("scale", textureIndex == Velocity ? -1.0f : 1.0f);
 
         write(textureIndex).draw(boundaryRect, states);
         swap(textureIndex);
@@ -132,6 +120,7 @@ int main(int, char **) {
     const sf::Color zeroColor;
 
     const int numJacobiIterations = 50;
+    const int numDiffusionJacobiIterations = 20;
 
     const float velocityScale[] = {
         0.5, 0.0, 0.0, 0.5,
@@ -292,7 +281,7 @@ int main(int, char **) {
                 shader(JacobiVector).setUniform("alpha", alpha);
                 shader(JacobiVector).setUniform("beta", 4.0f + alpha);
 
-                for (int i = 0; i < numJacobiIterations; i++) {
+                for (int i = 0; i < numDiffusionJacobiIterations; i++) {
                     shader(JacobiVector).setUniform("x", read(Velocity).getTexture());
                     shader(JacobiVector).setUniform("b", read(Velocity).getTexture());
 
@@ -346,21 +335,25 @@ int main(int, char **) {
             /// Buoyancy
             ////////////////////////////////////////////////////////////////////////////////
 
-            shader(Buoyancy).setUniform("read", read(Velocity).getTexture());
-            shader(Buoyancy).setUniform("density", read(Density).getTexture());
-            shader(Buoyancy).setUniform("temperature", read(Temperature).getTexture());
-            shader(Buoyancy).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            shader(Buoyancy).setUniform("timestep", timestep);
-            shader(Buoyancy).setUniform("k", 0.0005f);
-            shader(Buoyancy).setUniform("buoyancyFactor", 0.01f);
+            static const bool applyBuoyancy = true;
 
-            render(Buoyancy, Velocity);
+            if (applyBuoyancy) {
+                shader(Buoyancy).setUniform("read", read(Velocity).getTexture());
+                shader(Buoyancy).setUniform("density", read(Density).getTexture());
+                shader(Buoyancy).setUniform("temperature", read(Temperature).getTexture());
+                shader(Buoyancy).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+                shader(Buoyancy).setUniform("timestep", timestep);
+                shader(Buoyancy).setUniform("k", 0.001f);
+                shader(Buoyancy).setUniform("buoyancyFactor", 0.05f);
+
+                render(Buoyancy, Velocity);
+            }
 
             ////////////////////////////////////////////////////////////////////////////////
             /// Vorticity
             ////////////////////////////////////////////////////////////////////////////////
 
-            static const bool applyVorticity = false;
+            static const bool applyVorticity = true;
 
             if (applyVorticity) {
                 shader(Vorticity).setUniform("velocity", read(Velocity).getTexture());
@@ -414,7 +407,7 @@ int main(int, char **) {
             render(Gradient, Velocity);
 
             ////////////////////////////////////////////////////////////////////////////////
-            /// Density advection
+            /// Density and temperature advection
             ////////////////////////////////////////////////////////////////////////////////
 
             shader(Advect).setUniform("velocity", read(Velocity).getTexture());
@@ -433,7 +426,7 @@ int main(int, char **) {
             render(Advect, Temperature);
 
             ////////////////////////////////////////////////////////////////////////////////
-            /// Density diffusion
+            /// Density and temperature diffusion
             ////////////////////////////////////////////////////////////////////////////////
 
             static const bool applyDensityDiffusion = false;
@@ -443,15 +436,34 @@ int main(int, char **) {
 
                 float alpha = gridScale * gridScale / (viscosity * timestep);
 
-                shader(JacobiVector).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-                shader(JacobiVector).setUniform("alpha", alpha);
-                shader(JacobiVector).setUniform("beta", 4.0f + alpha);
+                shader(JacobiScalar).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+                shader(JacobiScalar).setUniform("alpha", alpha);
+                shader(JacobiScalar).setUniform("beta", 4.0f + alpha);
 
-                for (int i = 0; i < numJacobiIterations; i++) {
-                    shader(JacobiVector).setUniform("x", read(Density).getTexture());
-                    shader(JacobiVector).setUniform("b", read(Density).getTexture());
+                for (int i = 0; i < numDiffusionJacobiIterations; i++) {
+                    shader(JacobiScalar).setUniform("x", read(Density).getTexture());
+                    shader(JacobiScalar).setUniform("b", read(Density).getTexture());
 
-                    render(JacobiVector, Density);
+                    render(JacobiScalar, Density);
+                }
+            }
+
+            static const bool applyTemperatureDiffusion = false;
+
+            if (applyTemperatureDiffusion) {
+                static const float viscosity = 1e-5;
+
+                float alpha = gridScale * gridScale / (viscosity * timestep);
+
+                shader(JacobiScalar).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+                shader(JacobiScalar).setUniform("alpha", alpha);
+                shader(JacobiScalar).setUniform("beta", 4.0f + alpha);
+
+                for (int i = 0; i < numDiffusionJacobiIterations; i++) {
+                    shader(JacobiScalar).setUniform("x", read(Temperature).getTexture());
+                    shader(JacobiScalar).setUniform("b", read(Temperature).getTexture());
+
+                    render(JacobiScalar, Temperature);
                 }
             }
 

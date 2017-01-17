@@ -50,7 +50,7 @@ static sf::RenderTexture textures[TextureCount][2];
 static int indices[TextureCount];
 
 static int gridWidth, gridHeight;
-sf::RectangleShape gridRect;
+sf::RectangleShape gridRect, boundaryRect;
 
 static inline int next(int textureIndex) {
     return (indices[textureIndex] + 1) % 2;
@@ -76,7 +76,7 @@ static inline const char *shaderFileName(int shaderIndex) {
     return shaderFileNames[shaderIndex];
 }
 
-static void render(int shaderIndex, int textureIndex, bool applyBoundary = true) {
+static void render(int shaderIndex, int textureIndex) {
     sf::RenderStates states;
 
     states.shader = &shader(shaderIndex);
@@ -84,8 +84,8 @@ static void render(int shaderIndex, int textureIndex, bool applyBoundary = true)
     write(textureIndex).draw(gridRect, states);
     swap(textureIndex);
 
-    if (applyBoundary) {
-        float scale;
+    if (textureIndex == Velocity || textureIndex == Pressure) {
+        float scale = 0;
 
         switch (textureIndex) {
         case Velocity:
@@ -95,10 +95,6 @@ static void render(int shaderIndex, int textureIndex, bool applyBoundary = true)
         case Pressure:
             scale = 1;
             break;
-
-        default:
-            scale = 0;
-            break;
         }
 
         states.shader = &shader(Boundary);
@@ -107,7 +103,7 @@ static void render(int shaderIndex, int textureIndex, bool applyBoundary = true)
         shader(Boundary).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
         shader(Boundary).setUniform("scale", scale);
 
-        write(textureIndex).draw(gridRect, states);
+        write(textureIndex).draw(boundaryRect, states);
         swap(textureIndex);
     }
 }
@@ -123,7 +119,11 @@ int main(int, char **) {
 
     gridWidth = windowWidth / gridDownscale;
     gridHeight = windowHeight / gridDownscale;
-    gridRect = sf::RectangleShape(sf::Vector2f(gridWidth, gridHeight));
+
+    gridRect = sf::RectangleShape(sf::Vector2f(gridWidth - 2, gridHeight - 2));
+    gridRect.move(1, 1);
+
+    boundaryRect = sf::RectangleShape(sf::Vector2f(gridWidth, gridHeight));
 
     const float gridScale = 1;
     const float timestep = 1;
@@ -265,39 +265,40 @@ int main(int, char **) {
 
         if (!pause) {
             ////////////////////////////////////////////////////////////////////////////////
-            /// Permanent source of density and temperature
+            /// Velocity advection
             ////////////////////////////////////////////////////////////////////////////////
-
-            sf::CircleShape circle(5);
-            circle.setOrigin(circle.getRadius(), circle.getRadius());
-            circle.setPosition(gridWidth / 2, gridHeight / 2);
-
-            read(Density).draw(circle);
-            read(Temperature).draw(circle);
-
-            ////////////////////////////////////////////////////////////////////////////////
-            /// Advection
-            ////////////////////////////////////////////////////////////////////////////////
-
-            shader(Advect).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            shader(Advect).setUniform("gridScale", gridScale);
-            shader(Advect).setUniform("timestep", timestep);
 
             shader(Advect).setUniform("velocity", read(Velocity).getTexture());
             shader(Advect).setUniform("advected", read(Velocity).getTexture());
+            shader(Advect).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            shader(Advect).setUniform("gridScale", gridScale);
+            shader(Advect).setUniform("timestep", timestep);
             shader(Advect).setUniform("dissipation", 1.0f);
 
             render(Advect, Velocity);
 
-            shader(Advect).setUniform("advected", read(Density).getTexture());
-            shader(Advect).setUniform("dissipation", 0.998f);
+            ////////////////////////////////////////////////////////////////////////////////
+            /// Velocity diffusion
+            ////////////////////////////////////////////////////////////////////////////////
 
-            render(Advect, Density);
+            static const bool applyVelocityDiffusion = false;
 
-            shader(Advect).setUniform("advected", read(Temperature).getTexture());
-            shader(Advect).setUniform("dissipation", 0.998f);
+            if (applyVelocityDiffusion) {
+                static const float viscosity = 1e-5;
 
-            render(Advect, Temperature);
+                float alpha = gridScale * gridScale / (viscosity * timestep);
+
+                shader(JacobiVector).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+                shader(JacobiVector).setUniform("alpha", alpha);
+                shader(JacobiVector).setUniform("beta", 4.0f + alpha);
+
+                for (int i = 0; i < numJacobiIterations; i++) {
+                    shader(JacobiVector).setUniform("x", read(Velocity).getTexture());
+                    shader(JacobiVector).setUniform("b", read(Velocity).getTexture());
+
+                    render(JacobiVector, Velocity);
+                }
+            }
 
             ////////////////////////////////////////////////////////////////////////////////
             /// Adding forces and densities from mouse movement
@@ -359,14 +360,14 @@ int main(int, char **) {
             /// Vorticity
             ////////////////////////////////////////////////////////////////////////////////
 
-            static const bool applyVorticity = true;
+            static const bool applyVorticity = false;
 
             if (applyVorticity) {
                 shader(Vorticity).setUniform("velocity", read(Velocity).getTexture());
                 shader(Vorticity).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
                 shader(Vorticity).setUniform("gridScale", gridScale);
 
-                render(Vorticity, VelocityVorticity, false);
+                render(Vorticity, VelocityVorticity);
 
                 static const float curl = 0.025;
 
@@ -382,27 +383,54 @@ int main(int, char **) {
             }
 
             ////////////////////////////////////////////////////////////////////////////////
-            /// Velocity diffusion
+            /// Projection operator
             ////////////////////////////////////////////////////////////////////////////////
 
-            static const bool applyVelocityDiffusion = false;
+            shader(Divergence).setUniform("velocity", read(Velocity).getTexture());
+            shader(Divergence).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            shader(Divergence).setUniform("gridScale", gridScale);
 
-            if (applyVelocityDiffusion) {
-                static const float viscosity = 1e-5;
+            render(Divergence, VelocityDivergence);
 
-                float alpha = gridScale * gridScale / (viscosity * timestep);
+            write(Pressure).clear(zeroColor);
+            swap(Pressure);
 
-                shader(JacobiVector).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-                shader(JacobiVector).setUniform("alpha", alpha);
-                shader(JacobiVector).setUniform("beta", 4.0f + alpha);
+            shader(JacobiScalar).setUniform("b", read(VelocityDivergence).getTexture());
+            shader(JacobiScalar).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            shader(JacobiScalar).setUniform("alpha", -gridScale * gridScale);
+            shader(JacobiScalar).setUniform("beta", 4.0f);
 
-                for (int i = 0; i < numJacobiIterations; i++) {
-                    shader(JacobiVector).setUniform("x", read(Velocity).getTexture());
-                    shader(JacobiVector).setUniform("b", read(Velocity).getTexture());
+            for (int i = 0; i < numJacobiIterations; i++) {
+                shader(JacobiScalar).setUniform("x", read(Pressure).getTexture());
 
-                    render(JacobiVector, Velocity);
-                }
+                render(JacobiScalar, Pressure);
             }
+
+            shader(Gradient).setUniform("p", read(Pressure).getTexture());
+            shader(Gradient).setUniform("w", read(Velocity).getTexture());
+            shader(Gradient).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            shader(Gradient).setUniform("gridScale", gridScale);
+
+            render(Gradient, Velocity);
+
+            ////////////////////////////////////////////////////////////////////////////////
+            /// Density advection
+            ////////////////////////////////////////////////////////////////////////////////
+
+            shader(Advect).setUniform("velocity", read(Velocity).getTexture());
+            shader(Advect).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
+            shader(Advect).setUniform("gridScale", gridScale);
+            shader(Advect).setUniform("timestep", timestep);
+
+            shader(Advect).setUniform("advected", read(Density).getTexture());
+            shader(Advect).setUniform("dissipation", 0.998f);
+
+            render(Advect, Density);
+
+            shader(Advect).setUniform("advected", read(Temperature).getTexture());
+            shader(Advect).setUniform("dissipation", 0.998f);
+
+            render(Advect, Temperature);
 
             ////////////////////////////////////////////////////////////////////////////////
             /// Density diffusion
@@ -428,35 +456,15 @@ int main(int, char **) {
             }
 
             ////////////////////////////////////////////////////////////////////////////////
-            /// Projection operator
+            /// Permanent source of density and temperature
             ////////////////////////////////////////////////////////////////////////////////
 
-            shader(Divergence).setUniform("velocity", read(Velocity).getTexture());
-            shader(Divergence).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            shader(Divergence).setUniform("gridScale", gridScale);
+            sf::CircleShape circle(5);
+            circle.setOrigin(circle.getRadius(), circle.getRadius());
+            circle.setPosition(gridWidth / 2, gridHeight / 2);
 
-            render(Divergence, VelocityDivergence, false);
-
-            write(Pressure).clear(zeroColor);
-            swap(Pressure);
-
-            shader(JacobiScalar).setUniform("b", read(VelocityDivergence).getTexture());
-            shader(JacobiScalar).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            shader(JacobiScalar).setUniform("alpha", -gridScale * gridScale);
-            shader(JacobiScalar).setUniform("beta", 4.0f);
-
-            for (int i = 0; i < numJacobiIterations; i++) {
-                shader(JacobiScalar).setUniform("x", read(Pressure).getTexture());
-
-                render(JacobiScalar, Pressure);
-            }
-
-            shader(Gradient).setUniform("p", read(Pressure).getTexture());
-            shader(Gradient).setUniform("w", read(Velocity).getTexture());
-            shader(Gradient).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
-            shader(Gradient).setUniform("gridScale", gridScale);
-
-            render(Gradient, Velocity);
+            read(Density).draw(circle);
+            read(Temperature).draw(circle);
         }
 
         ////////////////////////////////////////////////////////////////////////////////

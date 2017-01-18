@@ -121,17 +121,17 @@ int main(int, char **) {
     gridRect = sf::RectangleShape(sf::Vector2f(gridWidth - 2, gridHeight - 2));
     gridRect.move(1, 1);
 
-    leftLine[0].position = sf::Vector2f(1, 0);
-    leftLine[1].position = sf::Vector2f(1, gridHeight);
+    leftLine[0].position = sf::Vector2f(1, 1);
+    leftLine[1].position = sf::Vector2f(1, gridHeight - 1);
 
-    rightLine[0].position = sf::Vector2f(gridWidth, 0);
-    rightLine[1].position = sf::Vector2f(gridWidth, gridHeight);
+    rightLine[0].position = sf::Vector2f(gridWidth, 1);
+    rightLine[1].position = sf::Vector2f(gridWidth, gridHeight - 1);
 
-    topLine[0].position = sf::Vector2f(0, 0);
-    topLine[1].position = sf::Vector2f(gridWidth, 0);
+    topLine[0].position = sf::Vector2f(1, 0);
+    topLine[1].position = sf::Vector2f(gridWidth - 1, 0);
 
-    bottomLine[0].position = sf::Vector2f(0, gridHeight - 1);
-    bottomLine[1].position = sf::Vector2f(gridWidth, gridHeight - 1);
+    bottomLine[0].position = sf::Vector2f(1, gridHeight - 1);
+    bottomLine[1].position = sf::Vector2f(gridWidth - 1, gridHeight - 1);
 
     const float gridScale = 1;
     const float timestep = 1;

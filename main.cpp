@@ -50,7 +50,8 @@ static sf::RenderTexture textures[TextureCount][2];
 static int indices[TextureCount];
 
 static int gridWidth, gridHeight;
-sf::RectangleShape gridRect, boundaryRect;
+sf::RectangleShape gridRect;
+sf::Vertex leftLine[2], rightLine[2], topLine[2], bottomLine[2];
 
 static inline int next(int textureIndex) {
     return (indices[textureIndex] + 1) % 2;
@@ -91,8 +92,17 @@ static void render(int shaderIndex, int textureIndex) {
         shader(Boundary).setUniform("gridSize", sf::Glsl::Vec2(gridWidth, gridHeight));
         shader(Boundary).setUniform("scale", textureIndex == Velocity ? -1.0f : 1.0f);
 
-        write(textureIndex).draw(boundaryRect, states);
-        swap(textureIndex);
+        shader(Boundary).setUniform("offset", sf::Glsl::Vec2(1, 0));
+        write(textureIndex).draw(leftLine, 2, sf::Lines, states);
+
+        shader(Boundary).setUniform("offset", sf::Glsl::Vec2(-1, 0));
+        write(textureIndex).draw(rightLine, 2, sf::Lines, states);
+
+        shader(Boundary).setUniform("offset", sf::Glsl::Vec2(0, -1));
+        write(textureIndex).draw(topLine, 2, sf::Lines, states);
+
+        shader(Boundary).setUniform("offset", sf::Glsl::Vec2(0, 1));
+        write(textureIndex).draw(bottomLine, 2, sf::Lines, states);
     }
 }
 
@@ -111,7 +121,17 @@ int main(int, char **) {
     gridRect = sf::RectangleShape(sf::Vector2f(gridWidth - 2, gridHeight - 2));
     gridRect.move(1, 1);
 
-    boundaryRect = sf::RectangleShape(sf::Vector2f(gridWidth, gridHeight));
+    leftLine[0].position = sf::Vector2f(1, 0);
+    leftLine[1].position = sf::Vector2f(1, gridHeight);
+
+    rightLine[0].position = sf::Vector2f(gridWidth, 0);
+    rightLine[1].position = sf::Vector2f(gridWidth, gridHeight);
+
+    topLine[0].position = sf::Vector2f(0, 0);
+    topLine[1].position = sf::Vector2f(gridWidth, 0);
+
+    bottomLine[0].position = sf::Vector2f(0, gridHeight);
+    bottomLine[1].position = sf::Vector2f(gridWidth - 1, gridHeight - 1);
 
     const float gridScale = 1;
     const float timestep = 1;

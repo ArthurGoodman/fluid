@@ -32,7 +32,8 @@ const char *shaderFileNames[] = {
     "vorticity.frag",
     "vorticityForce.frag",
     "buoyancy.frag",
-    "boundary.frag"};
+    "boundary.frag"
+};
 
 enum TextureIndex {
     Velocity = 0,
@@ -50,8 +51,8 @@ static sf::RenderTexture textures[TextureCount][2];
 static int indices[TextureCount];
 
 static int gridWidth, gridHeight;
-sf::RectangleShape gridRect;
-sf::Vertex leftLine[2], rightLine[2], topLine[2], bottomLine[2];
+static sf::RectangleShape gridRect;
+static sf::Vertex leftLine[2], rightLine[2], topLine[2], bottomLine[2];
 
 static inline int next(int textureIndex) {
     return (indices[textureIndex] + 1) % 2;
@@ -145,19 +146,22 @@ int main(int, char **) {
         0.5, 0.0, 0.0, 0.5,
         0.0, 0.5, 0.0, 0.5,
         0.0, 0.0, 0.0, 0.5,
-        0.0, 0.0, 0.0, 1.0};
+        0.0, 0.0, 0.0, 1.0
+    };
 
     const float densityScale[] = {
         1.0, 0.0, 0.0, 0.0,
         1.0, 0.0, 0.0, 0.0,
         1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 1.0};
+        0.0, 0.0, 0.0, 1.0
+    };
 
     const float pressureScale[] = {
         0.5, 0.0, 0.0, 0.5,
         0.5, 0.0, 0.0, 0.5,
         0.5, 0.0, 0.0, 0.5,
-        0.0, 0.0, 0.0, 1.0};
+        0.0, 0.0, 0.0, 1.0
+    };
 
     bool pause = false;
 

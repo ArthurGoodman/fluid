@@ -51,7 +51,7 @@ static sf::RenderTexture textures[TextureCount][2];
 static int indices[TextureCount];
 
 static int gridWidth, gridHeight;
-static sf::RectangleShape gridRect;
+static sf::VertexArray gridRect(sf::Quads, 4);
 static sf::Vertex leftLine[2], rightLine[2], topLine[2], bottomLine[2];
 
 static inline int next(int textureIndex) {
@@ -79,7 +79,7 @@ static inline const char *shaderFileName(int shaderIndex) {
 }
 
 static void render(int shaderIndex, int textureIndex) {
-    sf::RenderStates states;
+    static sf::RenderStates states;
 
     states.shader = &shader(shaderIndex);
 
@@ -118,8 +118,10 @@ int main(int, char **) {
     gridWidth = windowWidth / gridDownscale;
     gridHeight = windowHeight / gridDownscale;
 
-    gridRect = sf::RectangleShape(sf::Vector2f(gridWidth - 2, gridHeight - 2));
-    gridRect.move(1, 1);
+    gridRect[0].position = sf::Vector2f(1, 1);
+    gridRect[1].position = sf::Vector2f(gridWidth - 1, 1);
+    gridRect[2].position = sf::Vector2f(gridWidth - 1, gridHeight - 1);
+    gridRect[3].position = sf::Vector2f(1, gridHeight - 1);
 
     leftLine[0].position = sf::Vector2f(1, 1);
     leftLine[1].position = sf::Vector2f(1, gridHeight - 1);
